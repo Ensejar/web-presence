@@ -45,6 +45,10 @@ async function initFilter() {
 
   updateViewUI();
   setupViewToggle();
+  const tutorial = await browser.storage.local.get("filtersTutorialDone");
+  if (!tutorial.filtersTutorialDone) {
+    await showFiltersTutorial();
+  }
 }
 
 window.initFilter = initFilter;

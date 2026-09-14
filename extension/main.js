@@ -12,6 +12,7 @@ const state = {
   pendingUpdateReason: null,
   lastBlockedLog: null,
   isFirstUpdate: true,
+  lastPrintedLogs: {},
 };
 
 const CONSTANTS = {
@@ -57,20 +58,16 @@ function stopWatching() {
 }
 
 // Schedule the next update based on activity
-function scheduleNextUpdate(interval = CONSTANTS.ACTIVE_INTERVAL, log, reason = "") {
+function scheduleNextUpdate(interval = CONSTANTS.ACTIVE_INTERVAL, reason = "") {
   if (!state.activeTab) {
     logInfo("[main:scheduleNextUpdate]: tab not active, skipping");
     return;
   }
 
   if (state.updateTimer) {
-    logInfo(`[main:scheduleNextUpdate]: update timer rescheduling - reason: ${reason || "reschedule"}`);
+    logOnce(`[main:scheduleNextUpdate]: update timer rescheduling - reason: ${reason || "reschedule"}`, "updateTimer");
     clearTimeout(state.updateTimer);
     state.updateTimer = null;
-  }
-
-  if (!log) {
-    logInfo(`[main:scheduleNextUpdate]: %cNext Update Check Scheduled:%c ${interval / 1000} seconds later.`, "color:#999; font-weight:bold;", "color:#4caf50;");
   }
 
   state.updateTimer = setTimeout(() => {
@@ -88,7 +85,7 @@ async function mainLoop() {
   try {
     hostMatch = await waitForHostname();
     if (!hostMatch) {
-      scheduleNextUpdate(CONSTANTS.ACTIVE_INTERVAL, true, "HOST_NOT_MATCH");
+      scheduleNextUpdate(CONSTANTS.ACTIVE_INTERVAL, "HOST_NOT_MATCH");
       return;
     }
     const song = await safeGetSongInfo();
@@ -386,7 +383,7 @@ async function mainLoop() {
     logError("[main]: Stack trace:", e.stack);
   } finally {
     state.isUpdating = false;
-    scheduleNextUpdate(CONSTANTS.ACTIVE_INTERVAL, hostMatch, "MAIN_LOOP");
+    scheduleNextUpdate(CONSTANTS.ACTIVE_INTERVAL, "MAIN_LOOP");
   }
 }
 
@@ -487,10 +484,11 @@ async function safeGetSongInfo() {
   }
 }
 
-function logOnce(msg) {
-  if (msg !== state.lastPrintedLog) {
-    logInfo(msg);
-    state.lastPrintedLog = msg;
+function logOnce(msg, group = "default") {
+  const cleanMsg = typeof msg === "string" ? msg : String(msg);
+  if (cleanMsg !== state.lastPrintedLogs[group]) {
+    logInfo(`[${group}] ${cleanMsg}`);
+    state.lastPrintedLogs[group] = cleanMsg;
   }
 }
 
@@ -501,10 +499,10 @@ async function waitForHostname() {
         type: "IS_HOSTNAME_MATCH",
       });
       if (res?.ok) {
-        logOnce(res?.match || "[main]: Hostname Match!");
+        logOnce(res?.match || "[main]: Hostname Match!", "hostmatch");
         return true;
       }
-      logOnce(`${res?.error?.message || "[main]: Hostname mismatch"}`);
+      logOnce(`${res?.error?.message || "[main]: Hostname mismatch"}`, "hostmatch");
       return false;
     } catch (e) {
       logError("[main]: waitForHostname error:", e);
@@ -594,7 +592,7 @@ function messageHandler(message, sender, sendResponse) {
 
   if (message.type === "RESTART_LOOP") {
     state.lastUpdateTime = 0;
-    scheduleNextUpdate(CONSTANTS.ACTIVE_INTERVAL, true, "RESTART_LOOP");
+    scheduleNextUpdate(CONSTANTS.ACTIVE_INTERVAL, "RESTART_LOOP");
   }
 
   if (message.action === "reloadPage") location.reload();

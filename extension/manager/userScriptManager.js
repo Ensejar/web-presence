@@ -42,7 +42,7 @@ class UserScriptUI {
     await i18n.load("extension");
     applyTranslations();
     this.bindEvents();
-    this.refreshList();
+    await this.refreshList();
     this.bindCodeEditor();
 
     const dataTheme = await browser.storage.local.get("theme");
@@ -119,6 +119,11 @@ class UserScriptUI {
 
     // GitHub auth badge - show connected state on header button
     this.refreshGithubAuthBadge();
+
+    const tutorial = await browser.storage.local.get("userScriptTutorialDone");
+    if (!tutorial.userScriptTutorialDone) {
+      await showUserScriptTutorial();
+    }
   }
 
   bindEvents() {

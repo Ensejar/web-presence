@@ -866,10 +866,11 @@ input[type="text"] {
 }
 
 #btnToggleView {
-  max-height: 36px;
+  max-height: 38px;
+  max-width: 38px;
+  padding: 10px;
   -ms-flex-item-align: center;
   align-self: center;
-  max-width: 36px;
 }
 
 .filter-item {
@@ -880,25 +881,9 @@ input[type="text"] {
   overflow: hidden;
   -webkit-box-shadow: 0 2px 4px var(--shadow-color);
   box-shadow: 0 2px 4px var(--shadow-color);
-  -webkit-transition:
-    border-color var(--transition-normal) ease,
-    background var(--transition-normal) ease,
-    opacity var(--transition-normal) ease,
-    -webkit-transform var(--transition-reduced) ease;
   transition:
     border-color var(--transition-normal) ease,
     background var(--transition-normal) ease,
-    opacity var(--transition-normal) ease,
-    -webkit-transform var(--transition-reduced) ease;
-  transition:
-    border-color var(--transition-normal) ease,
-    background var(--transition-normal) ease,
-    transform var(--transition-reduced) ease,
-    opacity var(--transition-normal) ease;
-  transition:
-    border-color var(--transition-normal) ease,
-    background var(--transition-normal) ease,
-    transform var(--transition-reduced) ease,
     opacity var(--transition-normal) ease,
     -webkit-transform var(--transition-reduced) ease;
 }

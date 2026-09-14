@@ -615,6 +615,66 @@ html.setup-dialog-open #mainFooterButtons {
   background-color: var(--foreground-color-400);
 }
 
+#tutorialTooltip {
+  position: absolute;
+  z-index: 10000;
+  max-width: 240px;
+  min-width: 240px;
+  background: var(--foreground-color-300);
+  color: var(--text-color-primary);
+  padding: 10px;
+  border-radius: var(--radius-default);
+  -webkit-box-shadow: 0 0 4px var(--text-color-muted);
+  box-shadow: 0 0 4px var(--text-color-muted);
+}
+
+.tutorialTooltip-highlight {
+  position: relative;
+  z-index: 9999;
+  outline: 3px solid var(--text-color-muted);
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+}
+
+.fading {
+  opacity: 0.3 !important;
+  -webkit-transform: scale(0.95);
+  -ms-transform: scale(0.95);
+  transform: scale(0.95);
+  pointer-events: none;
+}
+
+.tutorial-dialog h2 {
+  margin-block-end: 0.83em;
+}
+
+.tutorial-dialog p {
+  margin-block-end: 1em;
+  margin-top: -10px;
+}
+
+.tutorial-actions {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  gap: 6px;
+}
+
+.tutorial-button.next.finish,
+.tutorial-button.next {
+  -webkit-box-flex: 1;
+  -ms-flex: 1;
+  flex: 1;
+}
+
+.tutorial-button.skip {
+  background: var(--foreground-color-100);
+}
+
+.tutorial-button.skip:hover {
+  background: var(--foreground-color-200);
+}
+
 .settings-option-tip {
   pointer-events: all;
   margin: 6px;
