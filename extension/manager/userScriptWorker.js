@@ -165,28 +165,32 @@ class UserScriptManager {
         function waitForParserReady() {
           return new Promise((resolve) => {
             let resolved = false;
-            let handler;
 
             const finish = (reason) => {
               if (resolved) return;
               resolved = true;
               clearTimeout(timeoutId);
-              window.removeEventListener("message", handler);
+              browser.runtime.onMessage.removeListener(msgHandler);
               resolve();
             };
 
             const timeoutId = setTimeout(() => {
-              finish("timeout fallback (10s)");
-            }, 10000);
+              finish("TIMEOUT (6s elapsed)");
+            }, 6000);
 
-            handler = function(event) {
-              if (event.source !== window) return;
-              if (event.data?.type !== "PARSER_READY") return;
-              finish("PARSER_READY received");
+            const msgHandler = (message) => {
+              if (message && message.type === "PARSER_READY") {
+                finish("PARSER_READY message received");
+              }
             };
+            browser.runtime.onMessage.addListener(msgHandler);
 
-            window.addEventListener("message", handler);
-            window.postMessage({ type: "IS_PARSER_READY" }, "*");
+            browser.runtime.sendMessage({ type: "IS_PARSER_READY" })
+              .then((res) => {
+                if (res && res.ready) {
+                  finish("IS_PARSER_READY response confirmed ready");
+                }
+              })
           });
         }
         function useSetting(key, label, type, defaultValue) {
@@ -377,6 +381,10 @@ class UserScriptManager {
       const trackingCode = this.buildTrackDataScript(script);
 
       if (!browser.userScripts?.register) throw new Error("No compatible userscript API available");
+
+      if (isMV3 && browser.userScripts?.configureWorld) {
+        await browser.userScripts.configureWorld({ messaging: true }).catch(() => {});
+      }
 
       let registeredUserScript = null;
 

@@ -979,10 +979,8 @@ window.addEventListener("message", async (event) => {
   if (msg?.type === "USER_SCRIPT_CLEAR_ACTIVITY") {
     const domain = msg.domain || location.host;
     window.latestUserScriptData[domain] = { __clear: true };
-    try {
-      browser.runtime.sendMessage({ type: "RESTART_LOOP" });
-    } catch (e) {}
   }
+
   if (msg?.type === "USER_SCRIPT_IFRAME_DATA_REQUEST") {
     const { requestId, id, iframeSelectors } = msg;
     const key = id;
@@ -999,28 +997,7 @@ window.addEventListener("message", async (event) => {
   }
   if (msg?.type === "USER_SCRIPT_TRACK_DATA") {
     // Handle User Script Track Data
-    const now = Date.now();
     const domain = msg.data.domain || location.host;
-    const prevSong = window.latestUserScriptData[domain];
-    const newSong = msg.data.song;
-
-    const isSignificantChange =
-      !prevSong ||
-      prevSong.isPlaying !== newSong.isPlaying ||
-      (typeof prevSong.timePassed === "number" && typeof newSong.timePassed === "number" && Math.abs(newSong.timePassed - prevSong.timePassed) > 2);
-
-    window.latestUserScriptData[domain] = newSong;
-
-    if (!firstTrackSentDomains.has(domain)) {
-      firstTrackSentDomains.add(domain);
-      try {
-        browser.runtime.sendMessage({ type: "RESTART_LOOP" });
-      } catch (e) {}
-    } else if (isSignificantChange) {
-      try {
-        browser.runtime.sendMessage({ type: "RESTART_LOOP" });
-      } catch (e) {}
-    }
 
     window.latestUserScriptData[domain] = msg.data.song;
     window.latestUserScriptMeta = window.latestUserScriptMeta || {};
@@ -1362,4 +1339,8 @@ window.addEventListener("error", (event) => {
   window.__parserSystemReady = true;
   window.dispatchEvent(new Event("parser-ready"));
   window.postMessage({ type: "PARSER_READY" }, "*");
+
+  try {
+    browser.runtime.sendMessage({ type: "PARSER_READY_NOTIFY" });
+  } catch (e) {}
 })();

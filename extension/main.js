@@ -550,18 +550,12 @@ function init() {
     if (window.__parserSystemReady) return;
     await new Promise((resolve) => {
       window.addEventListener("parser-ready", resolve, { once: true });
-      setTimeout(resolve, 10000);
+      setTimeout(resolve, 6000);
     });
   }
 
   const start = async () => {
     await waitForParserSystem();
-
-    if (typeof window.getSongInfo !== "function") {
-      logError("[main:init]: getSongInfo not available, aborting");
-      return;
-    }
-
     registerRuntimeMessageListener();
     startWatching();
   };
@@ -588,11 +582,6 @@ function messageHandler(message, sender, sendResponse) {
     const response = cached?.title && cached?.artist ? cached : null;
     sendResponse(response);
     return true;
-  }
-
-  if (message.type === "RESTART_LOOP") {
-    state.lastUpdateTime = 0;
-    scheduleNextUpdate(CONSTANTS.ACTIVE_INTERVAL, "RESTART_LOOP");
   }
 
   if (message.action === "reloadPage") location.reload();

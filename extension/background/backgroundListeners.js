@@ -1718,10 +1718,24 @@ const setupListeners = () => {
           case "IS_TAB_AUDIBLE":
             result = await handleIsTabAudible(sender);
             break;
-          case "RESTART_LOOP": {
+          case "IS_PARSER_READY": {
+            const tab = await getSenderTab(sender);
+            if (!tab?.id) {
+              result = { ready: false };
+              break;
+            }
+            try {
+              const res = await browser.tabs.sendMessage(tab.id, { type: "IS_PARSER_READY" }, { frameId: 0 });
+              result = { ready: !!res?.ready };
+            } catch {
+              result = { ready: false };
+            }
+            break;
+          }
+          case "PARSER_READY_NOTIFY": {
             const tab = await getSenderTab(sender);
             if (tab?.id) {
-              browser.tabs.sendMessage(tab.id, { type: "RESTART_LOOP" }, { frameId: 0 }).catch(() => {});
+              browser.tabs.sendMessage(tab.id, { type: "PARSER_READY" }, { frameId: 0 }).catch(() => {});
             }
             result = { ok: true };
             break;
@@ -1741,6 +1755,25 @@ const setupListeners = () => {
     }
     return true;
   });
+
+  if (browser.runtime.onUserScriptMessage) {
+    browser.runtime.onUserScriptMessage.addListener(async (message, sender, sendResponse) => {
+      if (message?.type === "IS_PARSER_READY") {
+        const tab = sender.tab;
+        if (!tab?.id) {
+          sendResponse({ ready: false });
+          return true;
+        }
+        try {
+          const res = await browser.tabs.sendMessage(tab.id, { type: "IS_PARSER_READY" }, { frameId: 0 });
+          sendResponse({ ready: !!res?.ready });
+        } catch {
+          sendResponse({ ready: false });
+        }
+        return true;
+      }
+    });
+  }
 
   // update the local storage when the data changes
   browser.storage.onChanged.addListener((changes, area) => {
