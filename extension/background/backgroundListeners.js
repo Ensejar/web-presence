@@ -875,38 +875,32 @@ const handleUpdateRpc = async (req, sender) => {
     logInfo(`[background]: Tab ${tabId} resumed audio in UPDATE_RPC, timer cancelled`);
   }
 
-  // If it is not on the map and there is no play, reject it
-  if (!isPlaying && !state.activeTabMap.has(tabId)) {
-    logInfo(`[background]: Tab ${tabId} UPDATE_RPC: not audible, not playing, not in map, rejecting`);
+  // Check if it was on the map before setting
+  const isAlreadyTracked = state.activeTabMap.has(tabId);
 
-    state.activeTabMap.set(tabId, {
-      ...req.data,
-      isAudioPlaying: false,
-      lastKey: `${title}|${artist}`,
-      lastUpdated: now,
-      progress,
-      parserId,
-    });
-    return { ok: false, waiting: true };
-  }
-
-  // 2️) Update state
-  state.activeTabMap.set(tabId, {
+  const payload = {
     ...req.data,
     isAudioPlaying: isPlaying,
     lastKey: `${title}|${artist}`,
     lastUpdated: now,
     progress,
     parserId,
-  });
+  };
 
+  // If it hasn't entered the map yet and is not being played, reject it
+  if (!isPlaying && !isAlreadyTracked) {
+    logInfo(`[background]: Tab ${tabId} UPDATE_RPC: not audible, not playing, not in map, rejecting`);
+    state.activeTabMap.set(tabId, payload);
+    return { ok: false, waiting: true };
+  }
+
+  // 2) Update state
+  state.activeTabMap.set(tabId, payload);
+
+  // It's not being played, but if it's already on the map, keep the RPC
   if (!isPlaying) {
-    if (state.activeTabMap.has(tabId)) {
-      logInfo(`[background]: Tab ${tabId} UPDATE_RPC: not playing but already tracked, keeping RPC`);
-      return { ok: true };
-    }
-    logInfo(`[background]: Tab ${tabId} UPDATE_RPC: not audible, not playing, waiting`);
-    return { ok: true, waiting: true };
+    logInfo(`[background]: Tab ${tabId} UPDATE_RPC: not playing but already tracked, keeping RPC`);
+    return { ok: true };
   }
 
   // 3) Add History
@@ -1732,14 +1726,6 @@ const setupListeners = () => {
             }
             break;
           }
-          case "PARSER_READY_NOTIFY": {
-            const tab = await getSenderTab(sender);
-            if (tab?.id) {
-              browser.tabs.sendMessage(tab.id, { type: "PARSER_READY" }, { frameId: 0 }).catch(() => {});
-            }
-            result = { ok: true };
-            break;
-          }
           default:
             result = { ok: false, error: "Unknown message type" };
         }
@@ -1755,25 +1741,6 @@ const setupListeners = () => {
     }
     return true;
   });
-
-  if (browser.runtime.onUserScriptMessage) {
-    browser.runtime.onUserScriptMessage.addListener(async (message, sender, sendResponse) => {
-      if (message?.type === "IS_PARSER_READY") {
-        const tab = sender.tab;
-        if (!tab?.id) {
-          sendResponse({ ready: false });
-          return true;
-        }
-        try {
-          const res = await browser.tabs.sendMessage(tab.id, { type: "IS_PARSER_READY" }, { frameId: 0 });
-          sendResponse({ ready: !!res?.ready });
-        } catch {
-          sendResponse({ ready: false });
-        }
-        return true;
-      }
-    });
-  }
 
   // update the local storage when the data changes
   browser.storage.onChanged.addListener((changes, area) => {

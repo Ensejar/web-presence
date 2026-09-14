@@ -164,46 +164,59 @@ class UserScriptManager {
         const __userScriptUsedSettings = [];
         function waitForParserReady() {
           return new Promise((resolve) => {
-            let resolved = false;
+            if (window.__parserSystemReady) return resolve();
 
-            const finish = (reason) => {
-              if (resolved) return;
-              resolved = true;
-              clearTimeout(timeoutId);
-              browser.runtime.onMessage.removeListener(msgHandler);
-              resolve();
+            let isSettled = false;
+            const cleanup = () => {
+              if (!isSettled) {
+                isSettled = true;
+                window.removeEventListener("message", messageHandler);
+                clearTimeout(timeoutId);
+              }
             };
 
             const timeoutId = setTimeout(() => {
-              finish("TIMEOUT (6s elapsed)");
-            }, 6000);
+              cleanup();
+              console.warn("[waitForParserReady] Timeout (8s), loop starting.");
+              resolve(); 
+            }, 8000);
 
-            const msgHandler = (message) => {
-              if (message && message.type === "PARSER_READY") {
-                finish("PARSER_READY message received");
+            function messageHandler(event) {
+              if (event.source !== window) return;
+              if (event.data?.type === "PARSER_READY") {
+                cleanup();
+                resolve();
               }
-            };
-            browser.runtime.onMessage.addListener(msgHandler);
+            }
 
-            browser.runtime.sendMessage({ type: "IS_PARSER_READY" })
-              .then((res) => {
-                if (res && res.ready) {
-                  finish("IS_PARSER_READY response confirmed ready");
-                }
-              })
+            window.addEventListener("message", messageHandler);
+            window.postMessage({ type: "QUERY_PARSER_READY" }, "*");
           });
         }
         function useSetting(key, label, type, defaultValue) {
           __userScriptUsedSettings.push({ key, label, type, defaultValue });
           return new Promise((resolve, reject) => {
             const requestId = \`useSetting_\${Date.now()}_\${Math.random()}\`;
+
+            const cleanup = () => {
+              clearTimeout(timeoutId);
+              window.removeEventListener("message", handleResponse);
+            };
+
+            const timeoutId = setTimeout(() => {
+              cleanup();
+              reject(new Error("useSetting timeout"));
+            }, 5000);
+
             function handleResponse(event) {
               if (event.source !== window) return;
               const msg = event.data;
               if (!msg || msg.type !== "USER_SCRIPT_USE_SETTING_RESPONSE" || msg.requestId !== requestId) return;
-              window.removeEventListener("message", handleResponse);
+
+              cleanup();
               resolve(msg.value);
             }
+
             window.addEventListener("message", handleResponse);
 
             window.postMessage({
@@ -215,8 +228,6 @@ class UserScriptManager {
               inputType: type,
               defaultValue
             }, "*");
-
-            setTimeout(() => reject(new Error("useSetting timeout")), 5000);
           });
         }
         function clearActivity() {
@@ -231,11 +242,22 @@ class UserScriptManager {
           return new Promise((resolve) => {
             const requestId = \`iframeData_\${Date.now()}_\${Math.random()}\`;
 
+            const cleanup = () => {
+              clearTimeout(timeoutId);
+              window.removeEventListener("message", handleResponse);
+            };
+
+            const timeoutId = setTimeout(() => {
+              cleanup();
+              resolve(null);
+            }, 12000);
+
             function handleResponse(event) {
               if (event.source !== window) return;
               const msg = event.data;
               if (!msg || msg.type !== "USER_SCRIPT_IFRAME_DATA_RESPONSE" || msg.requestId !== requestId) return;
-              window.removeEventListener("message", handleResponse);
+              
+              cleanup();
               resolve(msg.data || null);
             }
 
@@ -247,8 +269,6 @@ class UserScriptManager {
               id: "${script.id}",
               iframeSelectors: ${JSON.stringify(script.iframeSelectors || null)},
             }, "*");
-
-            setTimeout(() => resolve(null), 12000);
           });
         }
         // update trackData
@@ -334,9 +354,21 @@ class UserScriptManager {
             console.groupEnd();
           }
         }
+      async function startScriptExecution() {
         await waitForParserReady();
-        await updateTrackData();
-        setInterval(updateTrackData, 4000);
+        const INTERVAL_DELAY = 4000;
+        async function loop() {
+          try {
+            await updateTrackData();
+          } catch (err) {
+            console.error("[Web Presence - UserScript Loop] Error:", err);
+          } finally {
+            setTimeout(loop, INTERVAL_DELAY);
+          }
+        }
+        loop();
+      }
+    startScriptExecution();
     })();
     `;
   }
@@ -381,10 +413,6 @@ class UserScriptManager {
       const trackingCode = this.buildTrackDataScript(script);
 
       if (!browser.userScripts?.register) throw new Error("No compatible userscript API available");
-
-      if (isMV3 && browser.userScripts?.configureWorld) {
-        await browser.userScripts.configureWorld({ messaging: true }).catch(() => {});
-      }
 
       let registeredUserScript = null;
 

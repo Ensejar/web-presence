@@ -550,7 +550,7 @@ function init() {
     if (window.__parserSystemReady) return;
     await new Promise((resolve) => {
       window.addEventListener("parser-ready", resolve, { once: true });
-      setTimeout(resolve, 6000);
+      setTimeout(resolve, 8000);
     });
   }
 

@@ -947,10 +947,6 @@ window.addEventListener("message", async (event) => {
   if (event.source !== window) return;
   const msg = event.data;
 
-  if (msg?.type === "IS_PARSER_READY" && window.__parserSystemReady) {
-    window.postMessage({ type: "PARSER_READY" }, "*");
-  }
-
   if (msg?.type === "USER_SCRIPT_USE_SETTING_REQUEST") {
     const { id, key, label, inputType, defaultValue, requestId } = msg;
 
@@ -1339,8 +1335,4 @@ window.addEventListener("error", (event) => {
   window.__parserSystemReady = true;
   window.dispatchEvent(new Event("parser-ready"));
   window.postMessage({ type: "PARSER_READY" }, "*");
-
-  try {
-    browser.runtime.sendMessage({ type: "PARSER_READY_NOTIFY" });
-  } catch (e) {}
 })();
