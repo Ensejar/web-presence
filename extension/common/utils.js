@@ -1762,6 +1762,41 @@ async function showInitialSetupDialog(appendBody, isSetupAlreadyDone, loadingOve
       document.documentElement.classList.remove("setup-dialog-open");
     };
 
+    // If the web-only mode is selected, restart the extension for it to work correctly
+    const restartUrl = appendBody ? browser.runtime.getURL(`activityLibrary/library.html?setup=1`) : null;
+    const showRestartWaitingScreen = async () => {
+      content.innerHTML = "";
+      const restartContainer = document.createElement("div");
+      restartContainer.className = "setup-restarting-container";
+
+      const spinner = Object.assign(document.createElement("div"), { className: "spinner" });
+      restartContainer.appendChild(spinner);
+
+      const restartText = document.createElement("p");
+      restartContainer.appendChild(restartText);
+      content.appendChild(restartContainer);
+
+      let secondsLeft = 5;
+      const noticeKey = appendBody ? "setup.restartingNoticePage" : "setup.restartingNoticeManual";
+
+      const updateMessage = () => {
+        restartText.textContent = i18n.t(noticeKey, { seconds: secondsLeft });
+      };
+
+      updateMessage();
+      await new Promise((res) => {
+        const interval = setInterval(() => {
+          secondsLeft -= 1;
+          if (secondsLeft > 0) {
+            updateMessage();
+          } else {
+            clearInterval(interval);
+            res();
+          }
+        }, 1000);
+      });
+    };
+
     // Event Listeners
     btnWebOnly.addEventListener("click", async (e) => {
       e.preventDefault();
@@ -1787,8 +1822,10 @@ async function showInitialSetupDialog(appendBody, isSetupAlreadyDone, loadingOve
           webOnlyMode: true,
           initialSetupDone: true,
         });
+        await showRestartWaitingScreen();
         cleanup();
         resolve();
+        await restartExtension(false, restartUrl);
       });
     });
 
@@ -1851,16 +1888,8 @@ async function showHostPermissionDialog(appendBody, loadingOverlay) {
     grantButton.id = "grantPermission";
     grantButton.textContent = i18n.t("setup.permission.grant");
 
-    const ignoreButton = document.createElement("button");
-    ignoreButton.id = "ignorePermission";
-    ignoreButton.textContent = i18n.t("common.continue");
-    ignoreButton.classList.add("secondary");
-
     buttons.appendChild(grantButton);
-    buttons.appendChild(ignoreButton);
-
     content.appendChild(buttons);
-
     dialog.appendChild(content);
 
     if (appendBody) wrapper.appendChild(dialog);
@@ -1892,12 +1921,6 @@ async function showHostPermissionDialog(appendBody, loadingOverlay) {
       } finally {
         if (appendBody) location.reload();
       }
-    });
-
-    ignoreButton.addEventListener("click", () => {
-      resolve(false);
-      contentDiv.removeChild(appendTarget);
-      document.documentElement.classList.remove("setup-dialog-open", "permission");
     });
   });
 }
@@ -3211,23 +3234,38 @@ function hidePopupMessage() {
 // Handle pending tab reload
 const handlePendingTabReload = async () => {
   try {
-    const { _pendingReloadTabId } = await browser.storage.local.get("_pendingReloadTabId");
-    if (!_pendingReloadTabId) return;
+    const { _pendingReloadTabId, _pendingTargetUrl } = await browser.storage.local.get(["_pendingReloadTabId", "_pendingTargetUrl"]);
+    if (!_pendingReloadTabId && !_pendingTargetUrl) return;
 
-    await browser.storage.local.remove("_pendingReloadTabId");
-    logInfo("[background]: pending reload detected, reloading tabs...");
+    await browser.storage.local.remove(["_pendingReloadTabId", "_pendingTargetUrl"]);
+    logInfo("[background]: pending actions detected, processing...");
 
-    const tabIds = Array.isArray(_pendingReloadTabId) ? _pendingReloadTabId : [_pendingReloadTabId];
-    await Promise.allSettled(tabIds.map((id) => browser.tabs.reload(id).catch(() => {})));
+    // 1. Refresh tabs
+    if (_pendingReloadTabId) {
+      const tabIds = Array.isArray(_pendingReloadTabId) ? _pendingReloadTabId : [_pendingReloadTabId];
+      await Promise.allSettled(tabIds.map((id) => browser.tabs.reload(id).catch(() => {})));
+      logInfo("[background]: tabs reloaded");
+    }
 
-    logInfo("[background]: tabs reloaded");
+    // 2. If there is a target URL, find any open tabs with the same URL, close them, and open a new one
+    if (_pendingTargetUrl) {
+      const existingTabs = await browser.tabs.query({ url: _pendingTargetUrl });
+      if (existingTabs.length > 0) {
+        const closePromiseList = existingTabs.map((t) => browser.tabs.remove(t.id).catch(() => {}));
+        await Promise.allSettled(closePromiseList);
+        logInfo("[background]: existing matching tabs closed");
+      }
+
+      await browser.tabs.create({ url: _pendingTargetUrl });
+      logInfo("[background]: target URL opened:", _pendingTargetUrl);
+    }
   } catch (err) {
     logError("[background]: handlePendingTabReload error:", err);
   }
 };
 
 // Restart Extension
-async function restartExtension(onlyActiveTab = false) {
+async function restartExtension(onlyActiveTab = false, targetUrl = null) {
   try {
     let reloadTabIds = [];
     if (onlyActiveTab) {
@@ -3252,8 +3290,12 @@ async function restartExtension(onlyActiveTab = false) {
       }
     }
 
-    if (reloadTabIds.length > 0) {
-      await browser.storage.local.set({ _pendingReloadTabId: reloadTabIds });
+    const pendingData = {};
+    if (reloadTabIds.length > 0) pendingData._pendingReloadTabId = reloadTabIds;
+    if (targetUrl) pendingData._pendingTargetUrl = targetUrl;
+
+    if (Object.keys(pendingData).length > 0) {
+      await browser.storage.local.set(pendingData);
     }
 
     if (typeof _dbPromise !== "undefined" && _dbPromise) {

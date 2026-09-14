@@ -1,6 +1,6 @@
 {
   "name": "web-presence",
-  "version": "3.2.0",
+  "version": "3.2.3",
   "description": "Web Presence Bridge for Discord",
   "homepage": "https://github.com/KanashiiDev/web-presence",
   "main": "app/main.js",
