@@ -85,6 +85,7 @@ async function mainLoop() {
   try {
     hostMatch = await waitForHostname();
     if (!hostMatch) {
+      if (rpcState.lastActivity?.lastUpdated) await handleNoSong();
       scheduleNextUpdate(CONSTANTS.ACTIVE_INTERVAL, "HOST_NOT_MATCH");
       return;
     }
@@ -92,7 +93,7 @@ async function mainLoop() {
     window._lastParsedSong = song && song !== "blocked" ? song : null;
 
     if (!song || song === "blocked" || (!song.title && !song.artist)) {
-      if (!song) logInfo("[main]: no song info");
+      if (!song) logOnce("[main]: no song info", "RPC");
       if (rpcState.lastActivity?.lastUpdated) await handleNoSong();
       state.lastRawPosition = null;
       return;
@@ -461,7 +462,7 @@ async function handleNoSong() {
     rpcState.reset();
     keepAliveManager.destroy();
     window._lastParsedSong = null;
-    logInfo("[main]: RPC cleared successfully");
+    logOnce("[main]: RPC cleared successfully", "RPC");
   } catch (e) {
     logError("[main:handleNoSong]: failed to clear RPC:", e);
     rpcState.reset();
@@ -487,7 +488,7 @@ async function safeGetSongInfo() {
 function logOnce(msg, group = "default") {
   const cleanMsg = typeof msg === "string" ? msg : String(msg);
   if (cleanMsg !== state.lastPrintedLogs[group]) {
-    logInfo(`[${group}] ${cleanMsg}`);
+    logInfo(cleanMsg);
     state.lastPrintedLogs[group] = cleanMsg;
   }
 }
