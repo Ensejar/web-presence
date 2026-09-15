@@ -192,6 +192,9 @@ class KeepAliveManager {
 
   initCanvasVideo() {
     try {
+      this.videoHost = document.createElement("div");
+      this.videoHost.setAttribute("aria-hidden", "true");
+      this.videoShadowRoot = this.videoHost.attachShadow({ mode: "closed" });
       this.videoElement = document.createElement("video");
       Object.assign(this.videoElement.style, {
         position: "fixed",
@@ -242,24 +245,27 @@ class KeepAliveManager {
         ctx.fillRect(0, 0, 1, 1);
         this.canvasRafId = requestAnimationFrame(draw);
       };
+
       draw();
 
       this.videoElement.srcObject = canvas.captureStream(4);
-      this.videoElement.play().catch(() => {});
+      this.videoShadowRoot.appendChild(this.videoElement);
 
       const target = document.body || document.documentElement;
       if (target) {
-        target.appendChild(this.videoElement);
+        target.appendChild(this.videoHost);
       } else {
         document.addEventListener(
           "DOMContentLoaded",
           () => {
             const target = document.body || document.documentElement;
-            target?.appendChild(this.videoElement);
+            target?.appendChild(this.videoHost);
           },
           { once: true },
         );
       }
+
+      this.videoElement.play().catch(() => {});
 
       const pipInterval = setInterval(() => exitPiP(), 100);
       this.intervals.push(pipInterval);
@@ -414,6 +420,13 @@ class KeepAliveManager {
       this.videoElement.remove();
       this.videoElement = null;
     }
+
+    if (this.videoHost) {
+      this.videoHost.remove();
+      this.videoHost = null;
+    }
+
+    this.videoShadowRoot = null;
 
     if (this.peerConnection) {
       this.peerConnection.close();
