@@ -455,6 +455,10 @@ input[disabled] {
   margin-top: 5px;
 }
 
+#patternStatus code.pattern-invalid {
+  color: var(--red-color);
+}
+
 code {
   background: var(--foreground-color-400);
   padding: 2px 4px;

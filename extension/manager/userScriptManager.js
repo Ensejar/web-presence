@@ -108,22 +108,8 @@ class UserScriptUI {
   }
 
   handlePatternStatus() {
-    const domainRaw = $("inDomain").value.trim();
-    const domains = splitAndTrim(domainRaw);
-
-    // Userscript Matches
-    const matches = domains.flatMap((d) => {
-      const cleanDomain = d.replace(/^(\*\.|www\.)/, "");
-      if (d.startsWith("*.")) {
-        return [`${cleanDomain}/*`, `*.${cleanDomain}/*`];
-      } else {
-        return [`${cleanDomain}/*`];
-      }
-    });
-
-    // Process the raw patterns
     const rawPatterns = $("inUrlPatterns").value;
-    const { normalizedList } = PatternValidator.processPatterns(rawPatterns);
+    const { normalizedList, invalidPatterns } = PatternValidator.processPatterns(rawPatterns);
     const patternStatus = $("patternStatus");
 
     // Clear previous content
@@ -133,6 +119,9 @@ class UserScriptUI {
       normalizedList.forEach((p) => {
         const cont = document.createElement("code");
         cont.textContent = p;
+        if (invalidPatterns.includes(p)) {
+          cont.classList.add("pattern-invalid");
+        }
         patternStatus.append(cont);
       });
     }
@@ -847,10 +836,9 @@ class UserScriptUI {
     }
 
     // URL Pattern Validation
-    try {
-      PatternValidator.normalizePatterns(script.urlPatterns);
-    } catch (error) {
-      this.showMessage(i18n.t("userscript.editor.warn.invalidPatterns") + " " + error.message, "error");
+    const { invalidPatterns } = PatternValidator.processPatterns(script.urlPatterns);
+    if (invalidPatterns.length > 0) {
+      this.showMessage(i18n.t("userscript.editor.warn.invalidPatterns") + " " + invalidPatterns.join(", "), "error");
       return;
     }
 

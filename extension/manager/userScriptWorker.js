@@ -46,20 +46,20 @@ class PatternValidator {
     const invalidPatterns = [];
 
     for (const p of list) {
+      let clean = p.trim();
+      if (clean.startsWith("/") && clean.endsWith("/i")) clean = clean.slice(1, -2);
+      else if (clean.startsWith("/") && clean.endsWith("/")) clean = clean.slice(1, -1);
+
       try {
-        const r = this.toRegex(p);
-        regexList.push(r);
-      } catch (err) {
+        new RegExp(clean);
+        regexList.push(this.toRegex(p));
+      } catch {
         invalidPatterns.push(p);
         regexList.push(/.*/);
       }
     }
 
-    return {
-      regexList,
-      normalizedList: list,
-      invalidPatterns,
-    };
+    return { regexList, normalizedList: list, invalidPatterns };
   }
 }
 
