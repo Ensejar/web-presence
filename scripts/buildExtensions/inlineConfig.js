@@ -127,7 +127,13 @@ module.exports = function registerInlines(inlineUtilsFunctions) {
   inlineUtilsFunctions("popup/popup.js", [], [], "start", true, { dir: "popup/components" });
 
   // Build CodeMirror 5
-  inlineUtilsFunctions("libs/codemirror/codemirror.js", ["libs/codemirror/libs/jshint.js", "libs/codemirror/addons/", "libs/beautify.js"], [], "end", true);
+  inlineUtilsFunctions(
+    "libs/codemirror/codemirror.js",
+    ["libs/codemirror/libs/jshint.js", "libs/codemirror/libs/jshintFilters.js", "libs/codemirror/addons/", "libs/beautify.js"],
+    [],
+    "end",
+    true,
+  );
 
   // User Script Manager
   inlineUtilsFunctions("manager/userScriptManager.js", "manager/components/UseSettingEditor.js", [], "start", true);

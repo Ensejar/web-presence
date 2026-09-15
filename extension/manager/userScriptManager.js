@@ -45,63 +45,6 @@ class UserScriptUI {
     await this.refreshList();
     this.bindCodeEditor();
 
-    const dataTheme = await browser.storage.local.get("theme");
-    const currentTheme = dataTheme.theme === "light" ? "material-lighter" : "material-darker";
-
-    this.iframeSelectorsEditor = CodeMirror.fromTextArea(document.getElementById("inIframeSelectors"), {
-      mode: "application/json",
-      theme: currentTheme,
-      lineNumbers: true,
-      indentUnit: 2,
-      tabSize: 2,
-      autoCloseBrackets: true,
-      matchBrackets: true,
-      lineWrapping: true,
-      extraKeys: {
-        "Ctrl-S": function (cm) {
-          document.getElementById("btnSave").click();
-        },
-      },
-    });
-
-    this.iframeSelectorsEditor.setValue(JSON.stringify({ fields: { $video: { type: "video" } } }, null, 2));
-
-    const iframeSelectorsContainer = document.getElementById("iframeSelectorsContainer");
-    const iframeSelectorsToggle = document.getElementById("btnIframeSelectorsToggle");
-    iframeSelectorsToggle.addEventListener("click", () => {
-      const isHidden = iframeSelectorsContainer.hidden;
-      iframeSelectorsContainer.hidden = !isHidden;
-
-      if (!isHidden) {
-        document.getElementById("iframeSelectorsError").textContent = "";
-        iframeSelectorsToggle.textContent = i18n.t("userscript.iframeSelectors.configure");
-      } else {
-        setTimeout(() => this.iframeSelectorsEditor.refresh(), 0);
-        iframeSelectorsToggle.textContent = i18n.t("common.close");
-      }
-    });
-
-    this.iframeSelectorsEditor.on("change", () => {
-      const errorEl = document.getElementById("iframeSelectorsError");
-      const raw = this.iframeSelectorsEditor.getValue().trim();
-
-      if (!raw) {
-        errorEl.textContent = "";
-        return;
-      }
-
-      try {
-        const parsed = JSON.parse(raw);
-        if (!parsed.fields || typeof parsed.fields !== "object") {
-          errorEl.textContent = i18n.t("userscript.iframeSelectors.error.missingFields");
-        } else {
-          errorEl.textContent = "";
-        }
-      } catch (e) {
-        errorEl.textContent = i18n.t("userscript.iframeSelectors.error.invalidJson") + ": " + e.message;
-      }
-    });
-
     const inModeEl = document.querySelector("#inMode");
 
     this.inModeTom = new TomSelect(inModeEl, {
@@ -196,38 +139,10 @@ class UserScriptUI {
   }
 
   async bindCodeEditor() {
-    const lintOptions = {
-      esversion: 11, // ES2020
-      asi: false, // automatic semicolon insertion
-      undef: true, // warn undefined variables
-      unused: false, // warnings about unused variables
-      browser: true, // It recognizes global variables such as window/document.
-      devel: true, // Allows console.log and alert
-      predef: [
-        "useSetting",
-        "getText",
-        "getTextAll",
-        "getImage",
-        "getImageAll",
-        "querySelectorDeep",
-        "getIframeData",
-        "clearActivity",
-        "AbortController",
-        "fetch",
-        "URL",
-        "URLSearchParams",
-        "crypto",
-        "IntersectionObserver",
-        "ResizeObserver",
-      ], // recognizes the helper functions
-    };
-
     const dataTheme = await browser.storage.local.get("theme");
     const currentTheme = dataTheme.theme === "light" ? "material-lighter" : "material-darker";
 
-    // Init CodeMirror 5
-    this.codeEditor = CodeMirror.fromTextArea(document.getElementById("inCode"), {
-      mode: "javascript",
+    const codeMirrorConfig = {
       theme: currentTheme,
       lineNumbers: true,
       indentUnit: 2,
@@ -237,7 +152,6 @@ class UserScriptUI {
       foldGutter: true,
       styleActiveLine: { nonEmpty: true },
       gutters: ["CodeMirror-linenumbers", "CodeMirror-lint-markers", "CodeMirror-foldgutter"],
-      lint: lintOptions,
       lineWrapping: true,
       extraKeys: {
         "Ctrl-/": "toggleComment",
@@ -252,47 +166,9 @@ class UserScriptUI {
           cm.preventDefault && cm.preventDefault();
         },
       },
-    });
+    };
 
-    // Auto-complete
-    this.codeEditor.on("inputRead", function (cm, change) {
-      if (change.text[0].match(/[a-zA-Z_.]/)) {
-        cm.showHint({ completeSingle: false });
-      }
-    });
-
-    this.codeEditor.on(
-      "change",
-      function (cm) {
-        const isMatch = this.checkSettings(cm);
-        if (isMatch && container.getAttribute("activeMode") === "edit") {
-          clearChildren(container);
-          this.useSettingEditor.loadFromCode();
-        }
-      }.bind(this),
-    );
-
-    // Async Wrapper
-    CodeMirror.registerHelper("lint", "javascript", function (text) {
-      const wrapped = "async function __wrapper__() {\n" + text + "\n}";
-      const result = JSHINT(wrapped, lintOptions);
-
-      const errors = JSHINT.errors
-        .map((err) => {
-          if (!err) return null;
-          err.line -= 1;
-          return err;
-        })
-        .filter(Boolean);
-
-      return errors.map((err) => ({
-        from: CodeMirror.Pos(err.line - 1, err.character - 1),
-        to: CodeMirror.Pos(err.line - 1, err.character),
-        message: err.reason,
-      }));
-    });
-
-    // js-beautify Options
+    // JsBeautify Config
     const beautifyOptions = {
       indent_size: 2,
       indent_char: " ",
@@ -316,11 +192,99 @@ class UserScriptUI {
       indent_empty_lines: false,
     };
 
+    // Init CodeMirror 5
+    this.codeEditor = CodeMirror.fromTextArea(document.getElementById("inCode"), {
+      mode: "javascript",
+      lint: lintOptions,
+      ...codeMirrorConfig,
+    });
+
+    // Auto-complete
+    this.codeEditor.on("inputRead", function (cm, change) {
+      if (change.text[0].match(/[a-zA-Z_.]/)) {
+        cm.showHint({ completeSingle: false });
+      }
+    });
+
+    this.codeEditor.on(
+      "change",
+      function (cm) {
+        const isMatch = this.checkSettings(cm);
+        if (isMatch && container.getAttribute("activeMode") === "edit") {
+          clearChildren(container);
+          this.useSettingEditor.loadFromCode();
+        }
+      }.bind(this),
+    );
+
+    // Apply JsHint Filters
+    applyJsHintFilters(CodeMirror, lintOptions);
+
     // add js-beautify
     document.getElementById("btnFormat").addEventListener("click", () => {
       const code = this.codeEditor.getValue();
       const formatted = js_beautify(code, beautifyOptions);
       this.codeEditor.setValue(formatted);
+    });
+
+    // Iframe Selector CodeMirror
+    this.iframeSelectorsEditor = CodeMirror.fromTextArea(document.getElementById("inIframeSelectors"), {
+      mode: "application/json",
+      ...codeMirrorConfig,
+    });
+
+    // Iframe Selector Default Value
+    this.iframeSelectorsEditor.setValue(JSON.stringify({ fields: { $video: { type: "video" } } }, null, 2));
+
+    // Iframe Selector Toggle
+    const iframeSelectorsContainer = document.getElementById("iframeSelectorsContainer");
+    const iframeSelectorsContainerHeader = document.getElementById("jsonCodeHeader");
+    const iframeSelectorsToggle = document.getElementById("btnIframeSelectorsToggle");
+
+    iframeSelectorsToggle.addEventListener("click", () => {
+      const isHidden = iframeSelectorsContainer.hidden;
+      iframeSelectorsContainer.hidden = !isHidden;
+      iframeSelectorsContainerHeader.hidden = !isHidden;
+
+      if (!isHidden) {
+        document.getElementById("iframeSelectorsError").textContent = "";
+        iframeSelectorsToggle.textContent = i18n.t("userscript.iframeSelectors.configure");
+      } else {
+        setTimeout(() => this.iframeSelectorsEditor.refresh(), 0);
+        iframeSelectorsToggle.textContent = i18n.t("common.close");
+      }
+    });
+
+    this.iframeSelectorsEditor.on("change", () => {
+      const errorEl = document.getElementById("iframeSelectorsError");
+      const raw = this.iframeSelectorsEditor.getValue().trim();
+
+      if (!raw) {
+        errorEl.textContent = "";
+        errorEl.hidden = true;
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(raw);
+        if (!parsed.fields || typeof parsed.fields !== "object") {
+          errorEl.textContent = i18n.t("userscript.iframeSelectors.error.missingFields");
+          errorEl.hidden = false;
+        } else {
+          errorEl.textContent = "";
+          errorEl.hidden = true;
+        }
+      } catch (e) {
+        errorEl.textContent = i18n.t("userscript.iframeSelectors.error.invalidJson") + ": " + e.message;
+        errorEl.hidden = false;
+      }
+    });
+
+    // add js-beautify
+    document.getElementById("btnFormatJson").addEventListener("click", () => {
+      const code = this.iframeSelectorsEditor.getValue();
+      const formatted = js_beautify(code, beautifyOptions);
+      this.iframeSelectorsEditor.setValue(formatted);
     });
 
     const CATEGORY_OPTIONS = [
@@ -669,18 +633,24 @@ class UserScriptUI {
     $("inDebug").checked = script?.debug || false;
 
     const iframeSelectorsContainer = document.getElementById("iframeSelectorsContainer");
+    const iframeSelectorsContainerHeader = document.getElementById("jsonCodeHeader");
+
     const iframeSelectorsBtn = document.getElementById("btnIframeSelectorsToggle");
 
     if (script?.iframeSelectors) {
       iframeSelectorsContainer.hidden = false;
+      iframeSelectorsContainerHeader.hidden = false;
       iframeSelectorsBtn.classList.add("active");
+      iframeSelectorsBtn.textContent = i18n.t("common.close");
       setTimeout(() => {
         this.iframeSelectorsEditor.setValue(JSON.stringify(script.iframeSelectors, null, 2));
         this.iframeSelectorsEditor.refresh();
-      }, 0);
+      }, 10);
     } else {
       iframeSelectorsContainer.hidden = true;
+      iframeSelectorsContainerHeader.hidden = true;
       iframeSelectorsBtn.classList.remove("active");
+      iframeSelectorsBtn.textContent = i18n.t("userscript.iframeSelectors.configure");
       this.iframeSelectorsEditor.setValue(JSON.stringify({ fields: { $video: { type: "video" } } }, null, 2));
     }
 
