@@ -162,6 +162,7 @@ class UserScriptManager {
     (async function() {
       const trackState = {};
         const __userScriptUsedSettings = [];
+        let __clearCalled = false;
         function waitForParserReady() {
           return new Promise((resolve) => {
             if (window.__parserSystemReady) return resolve();
@@ -232,11 +233,6 @@ class UserScriptManager {
         }
         function clearActivity() {
           __clearCalled = true;
-          window.postMessage({
-            type: "USER_SCRIPT_CLEAR_ACTIVITY",
-            id: "${script.id}",
-            domain: "${Array.isArray(script.domain) ? script.domain[0] : script.domain}",
-          }, "*");
         }
         function getIframeData() {
           return new Promise((resolve) => {
@@ -273,10 +269,18 @@ class UserScriptManager {
         }
         // update trackData
         async function updateTrackData() {
-          var __clearCalled = false;
           try {
+            __clearCalled = false;
             // UserScript
             ${script.code || ""}
+            if (__clearCalled) {
+              window.postMessage({
+                type: "USER_SCRIPT_CLEAR_ACTIVITY",
+                id: "${script.id}",
+                domain: "${Array.isArray(script.domain) ? script.domain[0] : script.domain}",
+              }, "*");
+              return;
+            }
             if (typeof __clearCalled !== "undefined" && __clearCalled) return;
             // update trackState
             trackState.title = typeof title === "string" ? title : (title == null ? null : String(title));

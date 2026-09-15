@@ -420,8 +420,7 @@ window.registerParser = async function ({
           clearActivity: () => CLEAR_SENTINEL,
         });
 
-        if (!rawData) return null;
-        if (rawData?.__clear) return -1;
+        if (!rawData || rawData?.__clear) return null;
 
         // RAW EXTRACTION
         let { timePassed = "", duration: durationElem = "" } = rawData;
@@ -1023,7 +1022,7 @@ window.addEventListener("message", async (event) => {
           try {
             const song = window.latestUserScriptData[msg.data.domain];
             if (!song) return null;
-            if (song.__clear) return -1;
+            if (song.__clear) return { __clear: true };
 
             const latestMeta = window.latestUserScriptMeta?.[msg.data.domain];
             const currentAutoDetect = latestMeta
