@@ -282,13 +282,16 @@ class UserScriptManager {
               return;
             }
             if (typeof __clearCalled !== "undefined" && __clearCalled) return;
+            const resolvedSongUrl = typeof songUrl !== "undefined" && songUrl !== null ? String(songUrl) : null;
+            const resolvedLink = typeof link !== "undefined" && link !== null ? String(link) : null;
+            const finalLink = resolvedSongUrl ?? resolvedLink;
             // update trackState
             trackState.title = typeof title === "string" ? title : (title == null ? null : String(title));
             trackState.artist = typeof artist === "string" ? artist : (artist == null ? null : String(artist));
             trackState.image = typeof image === "string" ? image : (image == null ? null : String(image));
             trackState.source = typeof source === "string" ? source : (source == null ? null : String(source));
-            trackState.songUrl = typeof songUrl === "string" ? songUrl : (songUrl == null ? null : String(songUrl));
-            trackState.link = trackState.songUrl ?? (typeof link === "undefined" ? null : (typeof link === "string" ? link : String(link)));
+            trackState.songUrl = finalLink;
+            trackState.link = finalLink;
             trackState.timePassed = typeof timePassed === "number" || typeof timePassed === "string" ? timePassed : null;
             trackState.duration = typeof duration === "number" || typeof duration === "string" ? duration : null;
             trackState.buttons = typeof buttons !== "undefined" && Array.isArray(buttons) ? buttons : null;
