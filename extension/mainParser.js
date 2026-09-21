@@ -973,7 +973,12 @@ window.addEventListener("message", async (event) => {
   }
   if (msg?.type === "USER_SCRIPT_CLEAR_ACTIVITY") {
     const domain = msg.domain || location.host;
+    const hadData = window.latestUserScriptData[domain] && !window.latestUserScriptData[domain].__clear;
     window.latestUserScriptData[domain] = { __clear: true };
+
+    if (hadData) {
+      browser.runtime.sendMessage({ type: "CLEAR_RPC" }).catch(() => {});
+    }
   }
 
   if (msg?.type === "USER_SCRIPT_IFRAME_DATA_REQUEST") {
@@ -995,8 +1000,6 @@ window.addEventListener("message", async (event) => {
     const domain = msg.data.domain || location.host;
 
     window.latestUserScriptData[domain] = msg.data.song;
-    window.latestUserScriptMeta = window.latestUserScriptMeta || {};
-    window.latestUserScriptMeta[domain] = msg.data;
 
     if (typeof window.registerParser === "function") {
       const autoDetectEnabled = msg.data.mode === "watch" && msg.data.watchAutoDetect && msg.data.watchAutoDetect !== "disable";
@@ -1024,12 +1027,7 @@ window.addEventListener("message", async (event) => {
             if (!song) return null;
             if (song.__clear) return { __clear: true };
 
-            const latestMeta = window.latestUserScriptMeta?.[msg.data.domain];
-            const currentAutoDetect = latestMeta
-              ? latestMeta.mode === "watch" && latestMeta.watchAutoDetect && latestMeta.watchAutoDetect !== "disable"
-              : autoDetectEnabled;
-
-            const videoData = currentAutoDetect ? getBestVideo(document.querySelectorAll("video")) : null;
+            const videoData = autoDetectEnabled ? getBestVideo(document.querySelectorAll("video")) : null;
             const { duration, currentTime, playing } = iframeData || videoData ? getBestData(iframeData, videoData) : {};
 
             return {

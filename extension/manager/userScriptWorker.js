@@ -233,7 +233,10 @@ class UserScriptManager {
         }
         function clearActivity() {
           __clearCalled = true;
+          throw new __ClearSignal();
         }
+        function __ClearSignal() {}
+        __ClearSignal.prototype = Object.create(Error.prototype);
         function getIframeData() {
           return new Promise((resolve) => {
             const requestId = \`iframeData_\${Date.now()}_\${Math.random()}\`;
@@ -273,6 +276,7 @@ class UserScriptManager {
             __clearCalled = false;
             // UserScript
             ${script.code || ""}
+
             if (__clearCalled) {
               window.postMessage({
                 type: "USER_SCRIPT_CLEAR_ACTIVITY",
@@ -281,21 +285,21 @@ class UserScriptManager {
               }, "*");
               return;
             }
-            if (typeof __clearCalled !== "undefined" && __clearCalled) return;
-            const resolvedSongUrl = typeof songUrl !== "undefined" && songUrl !== null ? String(songUrl) : null;
-            const resolvedLink = typeof link !== "undefined" && link !== null ? String(link) : null;
+
+            const resolvedSongUrl = typeof songUrl === "undefined" || songUrl == null ? null : typeof songUrl === "string" || typeof songUrl === "number" ? String(songUrl) : null;
+            const resolvedLink = typeof link === "undefined" || link == null ? null : typeof link === "string" || typeof link === "number" ? String(link) : null;
             const finalLink = resolvedSongUrl ?? resolvedLink;
             // update trackState
-            trackState.title = typeof title === "string" ? title : (title == null ? null : String(title));
-            trackState.artist = typeof artist === "string" ? artist : (artist == null ? null : String(artist));
-            trackState.image = typeof image === "string" ? image : (image == null ? null : String(image));
-            trackState.source = typeof source === "string" ? source : (source == null ? null : String(source));
+            trackState.title = typeof title === "undefined" || title == null ? null : typeof title === "string" || typeof title === "number" ? String(title) : null;
+            trackState.artist = typeof artist === "undefined" || artist == null ? null : typeof artist === "string" || typeof artist === "number" ? String(artist) : null;
+            trackState.image = typeof image === "undefined" || image == null ? null : typeof image === "string" || typeof image === "number" ? String(image) : null;
+            trackState.source = typeof source === "undefined" || source == null ? null : typeof source === "string" || typeof source === "number" ? String(source) : null;
             trackState.songUrl = finalLink;
             trackState.link = finalLink;
-            trackState.timePassed = typeof timePassed === "number" || typeof timePassed === "string" ? timePassed : null;
-            trackState.duration = typeof duration === "number" || typeof duration === "string" ? duration : null;
-            trackState.buttons = typeof buttons !== "undefined" && Array.isArray(buttons) ? buttons : null;
-            trackState.isPlaying = typeof isPlaying !== "undefined" ? Boolean(isPlaying) : null;
+            trackState.timePassed = typeof timePassed === "undefined" || timePassed == null ? null : typeof timePassed === "number" || typeof timePassed === "string" ? timePassed : null;
+            trackState.duration = typeof duration === "undefined" || duration == null ? null : typeof duration === "number" || typeof duration === "string" ? duration : null;
+            trackState.isPlaying = typeof isPlaying === "undefined" || isPlaying == null ? null : Boolean(isPlaying);
+            trackState.buttons = typeof buttons === "undefined" || buttons == null ? null : Array.isArray(buttons) ? buttons : null;
 
             // Track Data
             const trackData = {
@@ -347,6 +351,14 @@ class UserScriptManager {
 
             window.postMessage({ type: "USER_SCRIPT_TRACK_DATA", data: { ...trackData, iframeSelectors: ${JSON.stringify(script.iframeSelectors || null)},}}, "*");
           } catch (error) {
+            if (error instanceof __ClearSignal) {
+              window.postMessage({
+                type: "USER_SCRIPT_CLEAR_ACTIVITY",
+                id: "${script.id}",
+                domain: "${Array.isArray(script.domain) ? script.domain[0] : script.domain}",
+              }, "*");
+              return;
+            }
             const now = new Date();
             const timeString = \`\${String(now.getHours()).padStart(2,'0')}:\${String(now.getMinutes()).padStart(2,'0')}:\${String(now.getSeconds()).padStart(2,'0')}\`;
             console.groupCollapsed(\`%c Web Presence - USERSCRIPT ERROR [%c\${timeString}%c]: %cTracking Failed\`,
