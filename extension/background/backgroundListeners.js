@@ -916,20 +916,8 @@ const handleUpdateRpc = async (req, sender) => {
   }
 
   // 4) RPC update
-  if (state.webOnlyMode) {
-    try {
-      const rawActivity = buildActivityLocally(req.data);
-      const webOnlyActivity = formatForWebConnection(rawActivity);
-      await sendToWebOnlyBridge({ activity: webOnlyActivity });
-      return { ok: true, mode: "web-only" };
-    } catch (err) {
-      logError("[background:handleUpdateRpc] web-only error:", err);
-      return { ok: false, error: err.message, mode: "web-only" };
-    }
-  }
-
-  scheduleRpcUpdate(req.data, tabId)?.catch((err) => logError("[background:scheduleRpcUpdate]: RPC schedule failed", err));
-  return { ok: true, mode: "default" };
+  scheduleRpcUpdate(req.data, tabId);
+  return { ok: true, mode: state.webOnlyMode ? "web-only" : "default" };
 };
 
 const handleGetRpcPort = async () => {
