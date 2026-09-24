@@ -34,6 +34,7 @@ function buildActivity(data, now) {
   };
 
   const shouldShowArtist = activitySettings.showArtist;
+  const shouldShowSource = activitySettings.showSource;
 
   // FavIcon
   let favIcon = null;
@@ -51,6 +52,7 @@ function buildActivity(data, now) {
   // Base activity
   const activity = {
     application_id: CLIENT_ID,
+    name: (shouldShowSource ? dataSource : shouldShowArtist ? dataArtist : "") || "Web Presence",
     details: dataTitle,
     state: shouldShowArtist ? dataArtist : dataSource,
     type: isWatch ? 3 : 2,
@@ -89,10 +91,9 @@ function buildActivity(data, now) {
   // Small image
   const showSmallIcon = Boolean(activitySettings.showFavIcon);
   if (!artistIsIntentionallyEmpty && showSmallIcon) {
-    activity.smallImageKey = favIcon ?? (isWatch ? "watch" : "listen");
+    if (favIcon) activity.smallImageKey = favIcon;
     activity.smallImageText = dataSource;
-  } else if (!artistIsIntentionallyEmpty) {
-    activity.smallImageText = isWatch ? "Watching" : "Listening";
+    activity.largeImageText = "";
   } else {
     activity.smallImageText = "";
   }
@@ -140,6 +141,7 @@ function buildActivity(data, now) {
     if (isValidUrl(dataLink)) {
       activity.detailsUrl = dataLink;
       activity.largeImageUrl = dataLink;
+      activity.smallImageUrl = dataLink;
     }
   }
 
@@ -174,6 +176,7 @@ function sendToWebRPC(activity) {
   }
   if (activity.smallImageKey) {
     assets.small_image = activity.smallImageKey;
+    assets.small_url = activity.smallImageUrl;
   }
   if (activity.smallImageText) {
     assets.small_text = activity.smallImageText;
@@ -181,7 +184,7 @@ function sendToWebRPC(activity) {
 
   const webActivity = {
     application_id: activity.application_id,
-    name: activity.state,
+    name: activity.name,
     details: activity.details,
     details_url: activity.detailsUrl,
     state: activity.state,

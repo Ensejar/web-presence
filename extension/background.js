@@ -725,10 +725,12 @@ function buildActivityLocally(data) {
   }
 
   const shouldShowArtist = activitySettings.showArtist;
+  const shouldShowSource = activitySettings.showSource;
   const isWatch = data.mode === "watch";
 
   const activity = {
     application_id: "1366752683628957767",
+    name: (shouldShowSource ? dataSource : shouldShowArtist ? dataArtist : "") || "Web Presence",
     details: dataTitle,
     state: shouldShowArtist ? dataArtist : dataSource,
     type: isWatch ? 3 : 2,
@@ -759,10 +761,9 @@ function buildActivityLocally(data) {
   // Small image
   const showSmallIcon = Boolean(activitySettings.showFavIcon);
   if (!artistIsIntentionallyEmpty && showSmallIcon) {
-    activity.smallImageKey = favIcon ?? (isWatch ? "watch" : "listen");
+    if (favIcon) activity.smallImageKey = favIcon;
     activity.smallImageText = dataSource;
-  } else if (!artistIsIntentionallyEmpty) {
-    activity.smallImageText = isWatch ? "Watching" : "Listening";
+    activity.largeImageText = "";
   } else {
     activity.smallImageText = "";
   }
@@ -810,6 +811,7 @@ function buildActivityLocally(data) {
     if (isValidUrl(dataLink)) {
       activity.detailsUrl = dataLink;
       activity.largeImageUrl = dataLink;
+      activity.smallImageUrl = dataLink;
     }
   }
 
@@ -839,6 +841,7 @@ function formatForWebConnection(activity) {
   }
   if (activity.smallImageKey) {
     assets.small_image = activity.smallImageKey;
+    assets.small_url = activity.smallImageUrl;
   }
   if (activity.smallImageText) {
     assets.small_text = activity.smallImageText;
@@ -846,7 +849,7 @@ function formatForWebConnection(activity) {
 
   const webActivity = {
     application_id: activity.application_id,
-    name: activity.state,
+    name: activity.name,
     details: activity.details,
     details_url: activity.detailsUrl,
     state: activity.state,
