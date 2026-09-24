@@ -80,6 +80,7 @@ const state = {
   lastActivitySeenAt: null,
   healthCheckInterval: null,
   lastSavedHistoryEntry: null,
+  lastActivitySettings: null,
   listeningStartTime: null,
   serverInstance: null,
   lastUpdateRequest: null,

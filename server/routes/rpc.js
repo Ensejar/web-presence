@@ -72,9 +72,11 @@ function createRpcRouter(historyFilePath) {
       handleListeningTimeUpdate(activity, historyFilePath);
 
       // Deduplicate identical consecutive activities
-      const isSame = isSameActivity(activity, state.currentActivity);
+      const settingsChanged = JSON.stringify(activitySettings) !== JSON.stringify(state.lastActivitySettings || {});
+      const isSame = isSameActivity(activity, state.currentActivity) && !settingsChanged;
       if (!isSame) {
         const ok = await setRpcActivity(activity);
+        state.lastActivitySettings = activitySettings;
         // If the bridge is connected, consider it successful even if ok=false (Discord App may be closed)
         if (!ok && !isBridgeConnected()) {
           return res.status(503).json({ error: "RPC client not ready" });
