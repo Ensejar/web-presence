@@ -29,7 +29,6 @@ function buildActivity(data, now) {
   if (!dataArtist && dataSource) dataArtist = dataSource;
 
   const activitySettings = {
-    ...(data.settingsDefault && typeof data.settingsDefault === "object" ? data.settingsDefault : {}),
     ...(data.settings && typeof data.settings === "object" ? data.settings : {}),
   };
 
@@ -38,7 +37,8 @@ function buildActivity(data, now) {
 
   // FavIcon
   let favIcon = null;
-  if (activitySettings.showFavIcon && dataLink) {
+  const showSmallIcon = Boolean(activitySettings.showFavIcon);
+  if (showSmallIcon && dataLink) {
     try {
       const { hostname } = new URL(dataLink);
       favIcon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=64`;
@@ -52,7 +52,7 @@ function buildActivity(data, now) {
   // Base activity
   const activity = {
     application_id: CLIENT_ID,
-    name: (shouldShowSource ? dataSource : shouldShowArtist ? dataArtist : "") || "Web Presence",
+    name: (shouldShowSource && dataSource ? dataSource : shouldShowArtist && dataArtist ? dataArtist : "") || "Web Presence",
     details: dataTitle,
     state: shouldShowArtist ? dataArtist : dataSource,
     type: isWatch ? 3 : 2,
@@ -63,7 +63,20 @@ function buildActivity(data, now) {
     _source: dataSource,
   };
 
-  if (typeof StatusDisplayType !== "undefined" && StatusDisplayType.STATE) {
+  // Status Display Type
+  const statusDisplayTypeMap = {
+    0: typeof StatusDisplayType !== "undefined" ? StatusDisplayType.NAME : 0,
+    1: typeof StatusDisplayType !== "undefined" ? StatusDisplayType.STATE : 1,
+    2: typeof StatusDisplayType !== "undefined" ? StatusDisplayType.DETAILS : 2,
+  };
+
+  const rawDisplayType = Number(activitySettings?.statusDisplayType);
+  const validDisplayType = !isNaN(rawDisplayType) && rawDisplayType in statusDisplayTypeMap;
+  activity.statusDisplayTypeNumber = validDisplayType ? rawDisplayType : 1;
+
+  if (validDisplayType) {
+    activity.statusDisplayType = statusDisplayTypeMap[rawDisplayType];
+  } else if (typeof StatusDisplayType !== "undefined" && StatusDisplayType.STATE !== undefined) {
     activity.statusDisplayType = StatusDisplayType.STATE;
   }
 
@@ -89,13 +102,10 @@ function buildActivity(data, now) {
   }
 
   // Small image
-  const showSmallIcon = Boolean(activitySettings.showFavIcon);
-  if (!artistIsIntentionallyEmpty && showSmallIcon) {
-    if (favIcon) activity.smallImageKey = favIcon;
+  if (!artistIsIntentionallyEmpty && favIcon) {
+    activity.smallImageKey = favIcon;
     activity.smallImageText = dataSource;
     activity.largeImageText = "";
-  } else {
-    activity.smallImageText = "";
   }
 
   // Buttons
@@ -189,7 +199,7 @@ function sendToWebRPC(activity) {
     details_url: activity.detailsUrl,
     state: activity.state,
     type: activity.type,
-    status_display_type: 1,
+    status_display_type: Number(activity.statusDisplayTypeNumber),
     instance: activity.instance ?? false,
   };
 

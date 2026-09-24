@@ -35,33 +35,35 @@ function _dialog_btn(text, cls) {
   return btn;
 }
 
-function appendFormattedText(el, text) {
-  const regex = /<(b|i|code)>(.*?)<\/\1>/gis;
-
-  let lastIndex = 0;
-  let match;
-
-  while ((match = regex.exec(text)) !== null) {
-    // Normal text
-    if (match.index > lastIndex) {
-      el.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+/**
+ * DOM builder
+ *
+ * @param {string} tag
+ * @param {object} [attrs]
+ * @param {...(string|Node|null|undefined)} children
+ * @returns {HTMLElement}
+ *
+ * @example
+ * h("p", { class: "dlg-body" },
+ * h("b", {}, "Bold text"), " normal text",
+ * h("br", {}),
+ * myElement,
+ * )
+ */
+function h(tag, attrs = {}, ...children) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    el.setAttribute(k, v);
+  }
+  for (const child of children) {
+    if (child == null) continue;
+    if (child instanceof Node) {
+      el.appendChild(child);
+    } else {
+      el.appendChild(document.createTextNode(String(child)));
     }
-
-    const [, tag, content] = match;
-
-    // Allowed tag
-    const node = document.createElement(tag);
-    node.textContent = content;
-
-    el.appendChild(node);
-
-    lastIndex = regex.lastIndex;
   }
-
-  // Remaining text
-  if (lastIndex < text.length) {
-    el.appendChild(document.createTextNode(text.slice(lastIndex)));
-  }
+  return el;
 }
 
 /**
@@ -106,7 +108,7 @@ function _dialog_create({ titleId, type, heading, body, buttons, extraButtons = 
       p.className = "dlg-body";
 
       if (typeof body === "string") {
-        appendFormattedText(p, body);
+        p.textContent = body;
       } else {
         p.appendChild(body);
       }
@@ -182,14 +184,7 @@ async function showConfirm(title, { type = "danger", heading, body, labelOk, lab
 
   const bodyNode = (() => {
     if (!title) return body;
-    const frag = document.createDocumentFragment();
-    frag.appendChild(document.createTextNode(body));
-    frag.appendChild(document.createElement("br"));
-    const tag = document.createElement("span");
-    tag.className = "dlg-tag";
-    tag.textContent = title;
-    frag.appendChild(tag);
-    return frag;
+    return h("span", {}, String(body), h("br", {}), h("span", { class: "dlg-tag" }, title));
   })();
 
   return _dialog_create({

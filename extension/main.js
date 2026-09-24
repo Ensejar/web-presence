@@ -495,17 +495,27 @@ function logOnce(msg, group = "default") {
 
 async function waitForHostname() {
   while (true) {
+    if (typeof browser === "undefined" || !browser.runtime?.sendMessage) {
+      return false;
+    }
+
     try {
       const res = await browser.runtime.sendMessage({
         type: "IS_HOSTNAME_MATCH",
       });
+
       if (res?.ok) {
         logOnce(res?.match || "[main]: Hostname Match!", "hostmatch");
         return true;
       }
+
       logOnce(`${res?.error?.message || "[main]: Hostname mismatch"}`, "hostmatch");
       return false;
     } catch (e) {
+      if (e?.message?.includes("Extension context invalidated")) {
+        return false;
+      }
+
       logError("[main]: waitForHostname error:", e);
       await delay(CONSTANTS.ACTIVE_INTERVAL);
     }

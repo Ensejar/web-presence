@@ -75,13 +75,96 @@ async function buildThemeMotion(container) {
   normalizationTip.textContent = "i";
 
   normalizationTip.addEventListener("click", async () => {
-    const t1 = `<b>${i18n.t("common.enable")}</b>\n${i18n.t("settings.normalization.tip.enable")}`;
-    const t2 = `<b>${i18n.t("settings.normalization.cleanTitle")}</b>\n${i18n.t("settings.normalization.tip.cleanTitle")}`;
-    const t3 = `<b>${i18n.t("settings.normalization.stripDashPrefix")}</b>\n${i18n.t("settings.normalization.tip.stripDashPrefix")}`;
-    const t4 = `<b>${i18n.t("common.disable")}</b>\n${i18n.t("settings.normalization.tip.disable")}`;
-    await showAlert(i18n.t("settings.normalization"), `${t1}\n\n${t2}\n\n${t3}\n\n${t4}`, "tip");
+    const body = h(
+      "span",
+      {},
+      h("b", {}, i18n.t("common.enable")),
+      h("br", {}),
+      i18n.t("settings.normalization.tip.enable"),
+      h("br", {}),
+      h("br", {}),
+      h("b", {}, i18n.t("settings.normalization.cleanTitle")),
+      h("br", {}),
+      i18n.t("settings.normalization.tip.cleanTitle"),
+      h("br", {}),
+      h("br", {}),
+      h("b", {}, i18n.t("settings.normalization.stripDashPrefix")),
+      h("br", {}),
+      i18n.t("settings.normalization.tip.stripDashPrefix"),
+      h("br", {}),
+      h("br", {}),
+      h("b", {}, i18n.t("common.disable")),
+      h("br", {}),
+      i18n.t("settings.normalization.tip.disable"),
+    );
+    await showAlert(i18n.t("settings.normalization"), body, "tip");
   });
 
   normalizationWrap.querySelector("label").appendChild(normalizationTip);
   container.appendChild(normalizationWrap);
+
+  // Status Display Type
+  const { statusDisplayType: statusDisplayTypeValue } = await browser.storage.local.get("statusDisplayType");
+  let statusDisplayTypeConfig = statusDisplayTypeValue ?? "1";
+
+  const displayTypes = ["settings.statusDisplayType.source", "settings.statusDisplayType.title", "settings.statusDisplayType.details"];
+
+  const statusDisplayTypeOptions = [
+    { value: "0", text: i18n.t(displayTypes[0]) },
+    { value: "1", text: i18n.t(displayTypes[1]) },
+    { value: "2", text: i18n.t(displayTypes[2]) },
+  ];
+
+  const statusDisplayTypeWrap = createSelectRow(
+    i18n.t("settings.statusDisplayType"),
+    "statusDisplayType-wrapper",
+    statusDisplayTypeOptions,
+    statusDisplayTypeConfig,
+    debounce(async (e) => {
+      statusDisplayTypeConfig = e.target.value;
+      await browser.storage.local.set({ statusDisplayType: statusDisplayTypeConfig });
+    }, 300),
+  );
+
+  const statusDisplayTypeTipDisplay = (type) => {
+    const container = document.createElement("span");
+    container.className = "status-display";
+    const icon = document.createElement("span");
+    icon.appendChild(createSVG(svg_paths.musicNotePaths, { width: 14, height: 14, strokeWidth: 0 }));
+    container.appendChild(icon);
+    container.appendChild(document.createTextNode(i18n.t(`${displayTypes[type]}`)));
+
+    return container;
+  };
+
+  const statusDisplayTypeTip = document.createElement("span");
+  statusDisplayTypeTip.className = "settings-option-tip";
+  statusDisplayTypeTip.textContent = "i";
+
+  statusDisplayTypeTip.addEventListener("click", async () => {
+    const body = h(
+      "span",
+      {},
+      h("b", {}, i18n.t(displayTypes[0])),
+      h("br", {}),
+      i18n.t(`${displayTypes[0]}.tip`),
+      statusDisplayTypeTipDisplay(0),
+      h("br", {}),
+      h("br", {}),
+      h("b", {}, i18n.t(displayTypes[1])),
+      h("br", {}),
+      i18n.t(`${displayTypes[1]}.tip`),
+      statusDisplayTypeTipDisplay(1),
+      h("br", {}),
+      h("br", {}),
+      h("b", {}, i18n.t(displayTypes[2])),
+      h("br", {}),
+      i18n.t(`${displayTypes[2]}.tip`),
+      statusDisplayTypeTipDisplay(2),
+    );
+    await showAlert(i18n.t("settings.statusDisplayType"), body, "tip");
+  });
+
+  statusDisplayTypeWrap.querySelector("label").appendChild(statusDisplayTypeTip);
+  container.appendChild(statusDisplayTypeWrap);
 }

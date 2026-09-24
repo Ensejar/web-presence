@@ -164,14 +164,17 @@ async function getParserSettings(parserId) {
       return cached;
     }
 
-    const storageResult = await browser.storage.local.get("parserSettings");
-    const parserSettings = storageResult?.parserSettings ?? {};
+    const { parserSettings = {}, statusDisplayType } = await browser.storage.local.get(["parserSettings", "statusDisplayType"]);
 
     const parserKey = `settings_${parserId}`;
     const rawSettings = parserSettings?.[parserKey] ?? {};
 
     const parsedSettings =
       typeof rawSettings === "object" && rawSettings !== null ? Object.fromEntries(Object.entries(rawSettings).map(([key, obj]) => [key, obj?.value])) : {};
+
+    if (statusDisplayType !== undefined) {
+      parsedSettings.statusDisplayType = statusDisplayType;
+    }
 
     if (state.parserMap?.[parserId]) {
       state.parserMap[parserId].settings = parsedSettings;
@@ -466,13 +469,16 @@ const updateRpc = async (data, tabId) => {
 
     const parserSettings = await getParserSettings(parserId);
     const defaultParserSettings = Object.fromEntries(Object.entries(DEFAULT_PARSER_OPTIONS).map(([key, option]) => [key, option.value]));
+    const activitySettings = {
+      ...(defaultParserSettings && typeof defaultParserSettings === "object" ? defaultParserSettings : {}),
+      ...(parserSettings && typeof parserSettings === "object" ? parserSettings : {}),
+    };
 
     const payload = {
       data: {
         ...data,
         status: !!(base?.isAudioPlaying || data.isPlaying),
-        settings: parserSettings,
-        settingsDefault: defaultParserSettings,
+        settings: activitySettings,
       },
       clientId: `tab_${tabId}`,
       timestamp: Date.now(),
@@ -709,13 +715,13 @@ function buildActivityLocally(data) {
   };
 
   const activitySettings = mergeSettings(DEFAULT_PARSER_OPTIONS, {
-    ...data.settingsDefault,
     ...data.settings,
   });
 
   // FavIcon
   let favIcon = null;
-  if (activitySettings.showFavIcon && dataLink) {
+  const showSmallIcon = Boolean(activitySettings.showFavIcon);
+  if (showSmallIcon && dataLink) {
     try {
       const { hostname } = new URL(dataLink);
       favIcon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=64`;
@@ -730,12 +736,15 @@ function buildActivityLocally(data) {
 
   const activity = {
     application_id: "1366752683628957767",
-    name: (shouldShowSource ? dataSource : shouldShowArtist ? dataArtist : "") || "Web Presence",
+    name: (shouldShowSource && dataSource ? dataSource : shouldShowArtist && dataArtist ? dataArtist : "") || "Web Presence",
     details: dataTitle,
     state: shouldShowArtist ? dataArtist : dataSource,
     type: isWatch ? 3 : 2,
     instance: false,
   };
+
+  // Status Display Type
+  activity.statusDisplayType = activitySettings.statusDisplayType;
 
   // Large image
   if (activitySettings.customCover && activitySettings.customCoverUrl) {
@@ -759,13 +768,10 @@ function buildActivityLocally(data) {
   }
 
   // Small image
-  const showSmallIcon = Boolean(activitySettings.showFavIcon);
-  if (!artistIsIntentionallyEmpty && showSmallIcon) {
-    if (favIcon) activity.smallImageKey = favIcon;
+  if (!artistIsIntentionallyEmpty && favIcon) {
+    activity.smallImageKey = favIcon;
     activity.smallImageText = dataSource;
     activity.largeImageText = "";
-  } else {
-    activity.smallImageText = "";
   }
 
   // Buttons
@@ -854,7 +860,7 @@ function formatForWebConnection(activity) {
     details_url: activity.detailsUrl,
     state: activity.state,
     type: activity.type,
-    status_display_type: 1,
+    status_display_type: Number(activity.statusDisplayType),
     instance: activity.instance ?? false,
   };
 
