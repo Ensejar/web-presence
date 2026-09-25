@@ -1,0 +1,17 @@
+{
+  "author": {
+    "name": "Ensejar",
+    "id": "123456789012345678"
+  },
+  "color": "#FF6B00",
+  "category": "anime",
+  "description": {
+    "en": "Shows your anime watching activity on Dattebayo BR.",
+    "pt_BR": "Mostra o anime que estás a assistir no Dattebayo BR."
+  },
+  "url": [
+    "dattebayo.biz",
+    "www.dattebayo.biz"
+  ],
+  "version": "1.0.0"
+}
